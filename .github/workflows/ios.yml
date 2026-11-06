@@ -38,10 +38,18 @@ jobs:
       - name: Build unsigned release app
         run: flutter build ios --release --no-codesign
 
-      - name: Upload unsigned release app
+      - name: Package unsigned IPA
+        shell: bash
+        run: |
+          test -d build/ios/iphoneos/Runner.app
+          mkdir -p Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/Runner.app
+          /usr/bin/zip -r bang-kurdistan-unsigned.ipa Payload
+
+      - name: Upload unsigned IPA
         uses: actions/upload-artifact@v4
         with:
-          name: ios-release-unsigned-app
-          path: build/ios/iphoneos/Runner.app
+          name: ios-unsigned-ipa
+          path: bang-kurdistan-unsigned.ipa
           if-no-files-found: error
           retention-days: 14
