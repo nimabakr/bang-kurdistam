@@ -13,7 +13,7 @@ import '../screens/utility_screens.dart';
 import '../services/baghdad_clock.dart';
 import '../services/hijri_calendar.dart';
 import '../services/localization.dart';
-import '../services/prayer_time_service.dart';
+import '../services/prayer_notifications.dart';
 import '../widgets/glass.dart';
 
 const _gold = Color(0xFFD8B46A);
@@ -102,7 +102,6 @@ class _AppShellState extends State<AppShell> {
         onOpenSettings: _openSettings,
       ),
       MonthlyCalendarScreen(state: state),
-      QiblaScreen(state: state),
       MoreScreen(state: state, onOpenSettings: _openSettings),
     ];
 
@@ -121,25 +120,20 @@ class _AppShellState extends State<AppShell> {
               selectedIndex: _selectedIndex,
               onDestinationSelected: (index) =>
                   setState(() => _selectedIndex = index),
-              destinations: const [
+              destinations: [
                 NavigationDestination(
                   icon: Icon(Icons.home_outlined),
                   selectedIcon: Icon(Icons.home_rounded),
-                  label: 'سەرەکی',
+                  label: context.l10n.text('سەرەکی'),
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.calendar_month_outlined),
                   selectedIcon: Icon(Icons.calendar_month_rounded),
-                  label: 'ڕۆژژمێر',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.explore_outlined),
-                  selectedIcon: Icon(Icons.explore_rounded),
-                  label: 'قیبلە',
+                  label: context.l10n.text('ڕۆژژمێر'),
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.more_horiz_rounded),
-                  label: 'زیاتر',
+                  label: context.l10n.text('زیاتر'),
                 ),
               ],
             ),
@@ -256,7 +250,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Row(
                   children: [
                     Text(
-                      'نوێژەکان',
+                      context.l10n.text('نوێژەکان'),
                       style: Theme.of(context).textTheme.titleMedium
                           ?.copyWith(fontWeight: FontWeight.w700),
                     ),
@@ -306,7 +300,7 @@ class _HomeHeader extends StatelessWidget {
       ),
       const SizedBox(width: 6),
       Text(
-        'بانگ',
+        context.l10n.t('بانگ', 'بانگ', 'Bang'),
         style: Theme.of(context).textTheme.titleMedium
             ?.copyWith(fontWeight: FontWeight.w800),
       ),
@@ -315,7 +309,10 @@ class _HomeHeader extends StatelessWidget {
         child: TextButton.icon(
           onPressed: onChooseCity,
           icon: const Icon(Icons.location_on_outlined, size: 17),
-          label: Text(city.kurdishName, overflow: TextOverflow.ellipsis),
+          label: Text(
+            context.l10n.cityName(city),
+            overflow: TextOverflow.ellipsis,
+          ),
           style: TextButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             minimumSize: const Size(0, 40),
@@ -323,7 +320,7 @@ class _HomeHeader extends StatelessWidget {
         ),
       ),
       IconButton(
-        tooltip: 'ڕێکخستن',
+        tooltip: context.l10n.text('ڕێکخستن'),
         onPressed: onOpenSettings,
         icon: const Icon(Icons.tune_rounded),
       ),
@@ -339,28 +336,20 @@ class _DateLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const weekdays = [
-      'دووشەممە',
-      'سێشەممە',
-      'چوارشەممە',
-      'پێنجشەممە',
-      'هەینی',
-      'شەممە',
-      'یەکشەممە',
-    ];
     final hijri = HijriDate.fromGregorian(date, dayAdjustment: hijriAdjustment);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '${weekdays[date.weekday - 1]} · '
+          '${context.l10n.weekday(date.weekday)} · '
           '${date.day}/${date.month}/${date.year}',
           style: Theme.of(context).textTheme.bodySmall
               ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: 2),
         Text(
-          '${hijri.day} ${hijri.monthName('ku')} ${hijri.year} · هیجری خەمڵێنراو',
+          '${hijri.day} ${hijri.monthName(context.l10n.language.code)} '
+          '${hijri.year} · ${context.l10n.text('هیجری خەمڵێنراو')}',
           style: Theme.of(context).textTheme.labelSmall
               ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
@@ -398,7 +387,7 @@ class _NextPrayerCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'نوێژی داهاتوو',
+          context.l10n.text('نوێژی داهاتوو'),
           style: Theme.of(context).textTheme.bodySmall
               ?.copyWith(color: Colors.white.withValues(alpha: .72)),
         ),
@@ -408,7 +397,7 @@ class _NextPrayerCard extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                prayer.name,
+                context.l10n.prayerName(prayer.id),
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
@@ -488,7 +477,8 @@ class _PrayerRow extends StatelessWidget {
         ? Theme.of(context).colorScheme.primary
         : Theme.of(context).colorScheme.onSurface;
     return Semantics(
-      label: '${prayer.name}, ${formatTime(prayer.time)}',
+      label:
+          '${context.l10n.prayerName(prayer.id)}, ${formatTime(prayer.time)}',
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
@@ -501,7 +491,7 @@ class _PrayerRow extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                prayer.name,
+                context.l10n.prayerName(prayer.id),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: color,
                   fontWeight: isNext ? FontWeight.w700 : null,
@@ -540,7 +530,7 @@ class _SunriseLine extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Text(
-          'هەڵاتنی خۆر',
+          context.l10n.text('هەڵاتنی خۆر'),
           style: Theme.of(context).textTheme.bodySmall
               ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
@@ -581,10 +571,10 @@ class _ScheduleStatus extends StatelessWidget {
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 8),
-            const Text('کات بەردەست نییە'),
+            Text(context.l10n.text('کات بەردەست نییە')),
             TextButton(
               onPressed: () => state.loadScheduleFor(baghdadNow()),
-              child: const Text('دووبارە هەوڵبدەوە'),
+              child: Text(context.l10n.text('دووبارە هەوڵبدەوە')),
             ),
           ],
         ),
@@ -606,10 +596,10 @@ class _SourcePill extends StatelessWidget {
     final cached = schedule.source == PrayerScheduleSource.cachedCityTimetable;
     return Text(
       calculated
-          ? 'هەژمارکراو'
+          ? context.l10n.text('هەژمارکراو')
           : cached
-          ? 'ئۆفلاین'
-          : 'خشتەی شار',
+          ? context.l10n.text('ئۆفلاین')
+          : context.l10n.text('خشتەی شار'),
       style: Theme.of(context).textTheme.labelSmall?.copyWith(
         color: calculated
             ? Theme.of(context).colorScheme.tertiary
@@ -647,38 +637,38 @@ class MoreScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('زیاتر')),
+    appBar: AppBar(title: Text(context.l10n.text('زیاتر'))),
     body: ListView(
       padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
       children: [
         _MoreTile(
           icon: Icons.radio_button_checked_rounded,
-          title: 'تەسبیح',
+          title: context.l10n.text('تەسبیح'),
           onTap: () => _push(context, TasbihScreen(state: state)),
         ),
         _MoreTile(
           icon: Icons.schedule_rounded,
-          title: 'کاتەکانی نوێژ',
+          title: context.l10n.text('کاتەکانی نوێژ'),
           onTap: () => _push(context, PrayerTimesScreen(state: state)),
         ),
         _MoreTile(
           icon: Icons.fact_check_outlined,
-          title: 'تۆماری نوێژ',
+          title: context.l10n.text('تۆماری نوێژ'),
           onTap: () => _push(context, PrayerTrackerScreen(state: state)),
         ),
         _MoreTile(
           icon: Icons.calendar_month_rounded,
-          title: 'ڕۆژژمێری هیجری',
+          title: context.l10n.text('ڕۆژژمێری هیجری'),
           onTap: () => _push(context, HijriCalendarScreen(state: state)),
         ),
         _MoreTile(
           icon: Icons.tune_rounded,
-          title: 'ڕێکخستن',
+          title: context.l10n.text('ڕێکخستن'),
           onTap: onOpenSettings,
         ),
         const SizedBox(height: 8),
         const Center(
-          child: Text('بانگ | Kurdistan', style: TextStyle(color: Colors.grey)),
+          child: Text('Bang | Kurdistan', style: TextStyle(color: Colors.grey)),
         ),
       ],
     ),
@@ -737,14 +727,14 @@ class PrayerTimesScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final schedule = state.scheduleFor(baghdadNow());
     return Scaffold(
-      appBar: AppBar(title: const Text('کاتەکانی نوێژ')),
+      appBar: AppBar(title: Text(context.l10n.text('کاتەکانی نوێژ'))),
       body: schedule == null
           ? _ScheduleStatus(state: state)
           : ListView(
               padding: const EdgeInsets.all(18),
               children: [
                 Text(
-                  state.selectedCity.kurdishName,
+                  context.l10n.cityName(state.selectedCity),
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 _SourcePill(schedule: schedule),
@@ -777,20 +767,29 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('ڕێکخستن')),
+    appBar: AppBar(title: Text(context.l10n.text('ڕێکخستن'))),
     body: ListenableBuilder(
       listenable: state,
       builder: (context, _) => ListView(
         padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
         children: [
           _SettingsSection(
-            title: 'ڕووکار',
+            title: context.l10n.text('ڕووکار'),
             children: [
               SegmentedButton<ThemeMode>(
-                segments: const [
-                  ButtonSegment(value: ThemeMode.system, label: Text('سیستەم')),
-                  ButtonSegment(value: ThemeMode.light, label: Text('ڕووناک')),
-                  ButtonSegment(value: ThemeMode.dark, label: Text('تاریک')),
+                segments: [
+                  ButtonSegment(
+                    value: ThemeMode.system,
+                    label: Text(context.l10n.text('سیستەم')),
+                  ),
+                  ButtonSegment(
+                    value: ThemeMode.light,
+                    label: Text(context.l10n.text('ڕووناک')),
+                  ),
+                  ButtonSegment(
+                    value: ThemeMode.dark,
+                    label: Text(context.l10n.text('تاریک')),
+                  ),
                 ],
                 selected: {state.themeMode},
                 onSelectionChanged: (value) => state.setThemeMode(value.first),
@@ -798,12 +797,18 @@ class SettingsScreen extends StatelessWidget {
             ],
           ),
           _SettingsSection(
-            title: 'زمان',
+            title: context.l10n.text('زمان'),
             children: [
               SegmentedButton<AppLanguage>(
-                segments: const [
-                  ButtonSegment(value: AppLanguage.ku, label: Text('کوردی')),
-                  ButtonSegment(value: AppLanguage.ar, label: Text('عەرەبی')),
+                segments: [
+                  ButtonSegment(
+                    value: AppLanguage.ku,
+                    label: Text(context.l10n.text('کوردی')),
+                  ),
+                  ButtonSegment(
+                    value: AppLanguage.ar,
+                    label: Text(context.l10n.text('عەرەبی')),
+                  ),
                   ButtonSegment(value: AppLanguage.en, label: Text('English')),
                 ],
                 selected: {state.appLanguage},
@@ -813,49 +818,40 @@ class SettingsScreen extends StatelessWidget {
             ],
           ),
           _SettingsSection(
-            title: 'شوێن',
+            title: context.l10n.text('شوێن'),
             children: [
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.location_on_outlined),
-                title: Text(state.selectedCity.kurdishName),
+                title: Text(context.l10n.cityName(state.selectedCity)),
                 trailing: const Icon(Icons.chevron_left_rounded),
                 onTap: onChooseCity,
               ),
             ],
           ),
           _SettingsSection(
-            title: 'کاتەکان',
+            title: context.l10n.text('کاتەکان'),
             children: [
-              SegmentedButton<AsrMadhab>(
-                segments: const [
-                  ButtonSegment(value: AsrMadhab.shafi, label: Text('شافعی')),
-                  ButtonSegment(value: AsrMadhab.hanafi, label: Text('حەنەفی')),
-                ],
-                selected: {state.madhab},
-                onSelectionChanged: (value) => state.setMadhab(value.first),
-              ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('کاتی حیسابکراو'),
+                title: Text(context.l10n.text('کاتی حیسابکراو')),
                 value: state.calculatedFallbackEnabled,
                 onChanged: state.setCalculatedFallbackEnabled,
               ),
               for (final prayer in const [
-                ('fajr', 'بەیانی'),
-                ('dhuhr', 'نیوەڕۆ'),
-                ('asr', 'عەسر'),
-                ('maghrib', 'ئێوارە'),
-                ('isha', 'خەوتنان'),
+                'fajr',
+                'dhuhr',
+                'asr',
+                'maghrib',
+                'isha',
               ])
                 _AdjustmentRow(
-                  label: prayer.$2,
-                  value: state.minuteAdjustments[prayer.$1] ?? 0,
-                  onChanged: (value) =>
-                      state.setMinuteAdjustment(prayer.$1, value),
+                  label: context.l10n.prayerName(prayer),
+                  value: state.minuteAdjustments[prayer] ?? 0,
+                  onChanged: (value) => state.setMinuteAdjustment(prayer, value),
                 ),
               _AdjustmentRow(
-                label: 'ڕاستکردنەوەی هیجری',
+                label: context.l10n.text('ڕاستکردنەوەی هیجری'),
                 value: state.hijriDateAdjustment,
                 onChanged: state.setHijriDateAdjustment,
                 suffix: 'ڕۆژ',
@@ -863,63 +859,73 @@ class SettingsScreen extends StatelessWidget {
             ],
           ),
           _SettingsSection(
-            title: 'تەسبیح',
+            title: context.l10n.text('تەسبیح'),
             children: [
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('لێدان'),
+                title: Text(context.l10n.text('لێدان')),
                 value: state.tasbihHapticsEnabled,
                 onChanged: state.setTasbihHapticsEnabled,
               ),
             ],
           ),
           _SettingsSection(
-            title: 'ئاگادارکردنەوەی نوێژ',
+            title: context.l10n.text('ئاگادارکردنەوەی نوێژ'),
             children: [
               if (!state.notificationsSupported)
-                const ListTile(
+                ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(Icons.notifications_off_outlined),
-                  title: Text('لە وێب نۆتیفیکەیشن چالاک نییە'),
-                  subtitle: Text('لە ئەپی Android یان iOS بەردەستە'),
+                  title: Text(
+                    context.l10n.text('لە وێب نۆتیفیکەیشن چالاک نییە'),
+                  ),
+                  subtitle: Text(
+                    context.l10n.text('لە ئەپی Android یان iOS بەردەستە'),
+                  ),
                 )
               else ...[
                 for (final prayer in const [
-                  ('fajr', 'بەیانی'),
-                  ('sunrise', 'هەڵاتنی خۆر'),
-                  ('dhuhr', 'نیوەڕۆ'),
-                  ('asr', 'عەسر'),
-                  ('maghrib', 'ئێوارە'),
-                  ('isha', 'خەوتنان'),
+                  'fajr',
+                  'sunrise',
+                  'dhuhr',
+                  'asr',
+                  'maghrib',
+                  'isha',
                 ]) ...[
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text(prayer.$2),
-                    value: state.prayerNotificationsEnabled[prayer.$1] ?? false,
+                    title: Text(context.l10n.prayerName(prayer)),
+                    value: state.prayerNotificationsEnabled[prayer] ?? false,
                     onChanged: (value) =>
-                        state.setPrayerNotificationsEnabled(prayer.$1, value),
+                        state.setPrayerNotificationsEnabled(prayer, value),
                   ),
-                  if (state.prayerNotificationsEnabled[prayer.$1] == true)
+                  if (state.prayerNotificationsEnabled[prayer] == true)
                     SwitchListTile(
                       contentPadding: const EdgeInsetsDirectional.only(
                         start: 22,
                       ),
-                      title: const Text('ئاگادارکردنەوە پێش کات'),
-                      value: state.prayerRemindersEnabled[prayer.$1] ?? false,
+                      title: Text(context.l10n.text('ئاگادارکردنەوە پێش کات')),
+                      value: state.prayerRemindersEnabled[prayer] ?? false,
                       onChanged: (value) =>
-                          state.setPrayerReminderEnabled(prayer.$1, value),
+                          state.setPrayerReminderEnabled(prayer, value),
                     ),
                 ],
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('پێشوەختە'),
+                  title: Text(context.l10n.text('پێشوەختە')),
                   trailing: DropdownButton<int>(
                     value: state.prayerReminderMinutes,
                     items: const [5, 10, 15, 30]
                         .map(
                           (minutes) => DropdownMenuItem(
                             value: minutes,
-                            child: Text('$minutes خولەک'),
+                            child: Text(
+                              context.l10n.t(
+                                '$minutes خولەک',
+                                '$minutes دقيقة',
+                                '$minutes min',
+                              ),
+                            ),
                           ),
                         )
                         .toList(),
@@ -932,13 +938,13 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('لەرزین'),
+                  title: Text(context.l10n.text('لەرزین')),
                   value: state.notificationVibrationEnabled,
                   onChanged: state.setNotificationVibration,
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('بێدەنگ'),
+                  title: Text(context.l10n.text('بێدەنگ')),
                   value: state.notificationsSilent,
                   onChanged: state.setNotificationsSilent,
                 ),
@@ -947,12 +953,12 @@ class SettingsScreen extends StatelessWidget {
                   child: TextButton.icon(
                     onPressed: () => _testNotification(context),
                     icon: const Icon(Icons.notifications_active_outlined),
-                    label: const Text('تاقیکردنەوە'),
+                    label: Text(context.l10n.text('تاقیکردنەوە')),
                   ),
                 ),
                 if (state.notificationError case final error?)
                   Text(
-                    error,
+                    context.l10n.text(error),
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.error,
                     ),
@@ -961,75 +967,33 @@ class SettingsScreen extends StatelessWidget {
             ],
           ),
           _SettingsSection(
-            title: 'ئادھان',
+            title: context.l10n.text('تایبەتمەندی'),
             children: [
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('دەنگی ئادھان'),
-                value: state.adhanAudioEnabled,
-                onChanged: state.setAdhanAudioEnabled,
-              ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('هەڵبژاردنی دەنگ'),
-                trailing: DropdownButton<String>(
-                  value: state.adhanAudioPreset,
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'tone',
-                      child: Text('دۆڵەی نێوخۆش'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      state.setAdhanAudioPreset(value);
-                    }
-                  },
-                ),
-              ),
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: Row(
-                  children: [
-                    TextButton.icon(
-                      onPressed: () => state.previewAdhan(),
-                      icon: const Icon(Icons.play_arrow_rounded),
-                      label: const Text('پێش‌نمایش'),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => state.stopAdhanPreview(),
-                      icon: const Icon(Icons.stop_rounded),
-                      label: const Text('وەستاندن'),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          _SettingsSection(
-            title: 'تایبەتمەندی',
-            children: [
-              const ListTile(
-                contentPadding: EdgeInsets.zero,
                 leading: Icon(Icons.privacy_tip_outlined),
-                title: Text('داتاکانت تەنها لەسەر ئامێرەکەتە'),
+                title: Text(
+                  context.l10n.text('داتاکانت تەنها لەسەر ئامێرەکەتە'),
+                ),
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.delete_outline_rounded),
-                title: const Text('سڕینەوەی داتای کەسی'),
+                title: Text(context.l10n.text('سڕینەوەی داتای کەسی')),
                 onTap: () => _confirmClearData(context),
               ),
             ],
           ),
           _SettingsSection(
-            title: 'سەرچاوە',
+            title: context.l10n.text('سەرچاوە'),
             children: [
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.access_time_rounded),
-                title: const Text('خشتەی بانگ | Kurdistan'),
-                subtitle: const Text('داتای لایەنی سێیەم · حکومی نییە'),
+                title: Text(context.l10n.text('خشتەی بانگ | Kurdistan')),
+                subtitle: Text(
+                  context.l10n.text('داتای لایەنی سێیەم · حکومی نییە'),
+                ),
               ),
             ],
           ),
@@ -1042,16 +1006,18 @@ class SettingsScreen extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('سڕینەوەی داتا'),
-        content: const Text('ژمارە، ڕاستکردنەوە و دڵخوازەکان دەسڕدرێنەوە.'),
+        title: Text(context.l10n.text('سڕینەوەی داتا')),
+        content: Text(
+          context.l10n.text('ژمارە، ڕاستکردنەوە و دڵخوازەکان دەسڕدرێنەوە.'),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('پاشگەزبوونەوە'),
+            child: Text(context.l10n.text('پاشگەزبوونەوە')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('بسڕەوە'),
+            child: Text(context.l10n.text('بسڕەوە')),
           ),
         ],
       ),
@@ -1064,33 +1030,61 @@ class SettingsScreen extends StatelessWidget {
       await state.sendTestNotification();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('نۆتیفیکەیشنی تاقیکردنەوە نێردرا')),
+          SnackBar(
+            content: Text(
+              context.l10n.text('نۆتیفیکەیشنی تاقیکردنەوە نێردرا'),
+            ),
+          ),
+        );
+      }
+    } on NotificationPermissionDeniedException {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              context.l10n.notificationPermissionDenied,
+            ),
+          ),
         );
       }
     } on PlatformException catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('نەتوانرا نۆتیفیکەیشن بنێردرێت: ${error.message}'),
+            content: Text(
+              context.l10n.text(
+                'نەتوانرا نۆتیفیکەیشن بنێردرێت: ${error.message}',
+              ),
+            ),
           ),
         );
       }
     } on MissingPluginException catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خزمەتگوزاری بەردەست نییە: ${error.message}')),
+          SnackBar(
+            content: Text(
+              context.l10n.text('خزمەتگوزاری بەردەست نییە: ${error.message}'),
+            ),
+          ),
         );
       }
     } on UnsupportedError catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message ?? 'پشتگیری ناکرێت')),
+          SnackBar(
+            content: Text(
+              context.l10n.text(error.message ?? 'پشتگیری ناکرێت'),
+            ),
+          ),
         );
       }
     } on StateError catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.message)));
+            .showSnackBar(
+              SnackBar(content: Text(context.l10n.text(error.message))),
+            );
       }
     }
   }
@@ -1150,13 +1144,13 @@ class _AdjustmentRow extends StatelessWidget {
     children: [
       Expanded(child: Text(label)),
       IconButton(
-        tooltip: 'کەمکردنەوە',
+        tooltip: context.l10n.text('کەمکردنەوە'),
         onPressed: () => onChanged((value - 1).clamp(-60, 60).toInt()),
         icon: const Icon(Icons.remove_circle_outline, size: 20),
       ),
-      Text('$value $suffix'),
+      Text('$value ${context.l10n.text(suffix)}'),
       IconButton(
-        tooltip: 'زیادکردن',
+        tooltip: context.l10n.text('زیادکردن'),
         onPressed: () => onChanged((value + 1).clamp(-60, 60).toInt()),
         icon: const Icon(Icons.add_circle_outline, size: 20),
       ),

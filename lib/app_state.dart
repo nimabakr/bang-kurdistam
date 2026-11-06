@@ -9,7 +9,6 @@ import 'services/baghdad_clock.dart';
 import 'services/settings_store.dart';
 import 'services/prayer_time_service.dart';
 import 'services/prayer_notifications.dart';
-import 'services/adhan_audio_service.dart';
 import 'services/localization.dart';
 
 enum PrayerLogStatus { completed, missed }
@@ -30,7 +29,6 @@ class BangAppState extends ChangeNotifier {
 
   City selectedCity = cities.first;
   ThemeMode themeMode = ThemeMode.system;
-  AsrMadhab madhab = AsrMadhab.shafi;
   int tasbihCount = 0;
   int tasbihTarget = 33;
   String tasbihDhikr = 'subhanallah';
@@ -58,10 +56,7 @@ class BangAppState extends ChangeNotifier {
   bool notificationVibrationEnabled = true;
   bool notificationsSilent = false;
   String? notificationError;
-  bool adhanAudioEnabled = true;
-  String adhanAudioPreset = 'tone';
   PrayerNotifications? _prayerNotifications;
-  AdhanAudioService? _adhanAudioService;
   bool calculatedFallbackEnabled = false;
   bool scheduleLoading = false;
   String? scheduleError;
@@ -81,7 +76,9 @@ class BangAppState extends ChangeNotifier {
     final state = BangAppState(SharedPreferencesSettingsStore());
     final cityId = await state._preferences.getString('city_id');
     final themeName = await state._preferences.getString('theme_mode');
-    final madhabName = await state._preferences.getString('madhab');
+    await state._preferences.remove('madhab');
+    await state._preferences.remove('adhan_audio_enabled');
+    await state._preferences.remove('adhan_audio_preset');
     final adjustmentsJson = await state._preferences.getString(
       'minute_adjustments',
     );
@@ -99,9 +96,6 @@ class BangAppState extends ChangeNotifier {
       (mode) => mode.name == themeName,
       orElse: () => ThemeMode.system,
     );
-    state.madhab = madhabName == AsrMadhab.hanafi.name
-        ? AsrMadhab.hanafi
-        : AsrMadhab.shafi;
     state.tasbihCount = await state._preferences.getInt('tasbih_count') ?? 0;
     state.tasbihDhikr =
         await state._preferences.getString('tasbih_dhikr') ?? 'subhanallah';
@@ -167,10 +161,6 @@ class BangAppState extends ChangeNotifier {
         await state._preferences.getInt('notification_vibration') != 0;
     state.notificationsSilent =
         await state._preferences.getInt('notifications_silent') == 1;
-    state.adhanAudioEnabled =
-        (await state._preferences.getInt('adhan_audio_enabled') ?? 1) != 0;
-    state.adhanAudioPreset =
-        (await state._preferences.getString('adhan_audio_preset')) ?? 'tone';
     final savedTarget = await state._preferences.getInt('tasbih_target');
     state.tasbihTarget = const [33, 99, 100, 1000].contains(savedTarget)
         ? savedTarget!
@@ -217,10 +207,6 @@ class BangAppState extends ChangeNotifier {
     _prayerNotifications = service;
   }
 
-  void attachAdhanAudioService(AdhanAudioService service) {
-    _adhanAudioService = service;
-  }
-
   Future<void> selectCity(City city) async {
     selectedCity = city;
     todaySchedule = null;
@@ -238,7 +224,6 @@ class BangAppState extends ChangeNotifier {
         return dataset.scheduleFor(
           city: selectedCity,
           date: date,
-          madhab: madhab,
           minuteAdjustments: minuteAdjustments,
         );
       } on TimetableException {
@@ -252,7 +237,6 @@ class BangAppState extends ChangeNotifier {
     return _fallbackCalculator.calculateFallback(
       city: selectedCity,
       date: date,
-      madhab: madhab,
       minuteAdjustments: minuteAdjustments,
     );
   }
@@ -280,13 +264,11 @@ class BangAppState extends ChangeNotifier {
         todaySchedule = _fallbackCalculator.calculateFallback(
           city: requestedCity,
           date: today,
-          madhab: madhab,
           minuteAdjustments: minuteAdjustments,
         );
         tomorrowSchedule = _fallbackCalculator.calculateFallback(
           city: requestedCity,
           date: today.add(const Duration(days: 1)),
-          madhab: madhab,
           minuteAdjustments: minuteAdjustments,
         );
       } else {
@@ -321,6 +303,7 @@ class BangAppState extends ChangeNotifier {
         reminderMinutes: prayerReminderMinutes,
         vibration: notificationVibrationEnabled,
         silent: notificationsSilent,
+        language: appLanguage,
         now: now,
       );
       notificationError = null;
@@ -369,7 +352,8 @@ class BangAppState extends ChangeNotifier {
         return;
       }
       if (!granted) {
-        notificationError = 'مۆڵەتی نۆتیفیکەیشن نەدراوە.';
+        notificationError =
+            'مۆڵەتی نۆتیفیکەیشن نەدراوە؛ لە ڕێکخستنەکانی ئامێرەکەت چالاکی بکە.';
         notifyListeners();
         return;
       }
@@ -420,45 +404,13 @@ class BangAppState extends ChangeNotifier {
     await _reschedulePrayerNotifications();
   }
 
-  Future<void> setAdhanAudioEnabled(bool enabled) async {
-    adhanAudioEnabled = enabled;
-    await _preferences.setInt('adhan_audio_enabled', enabled ? 1 : 0);
-    notifyListeners();
-    if (enabled) {
-      await _adhanAudioService?.initialize();
-    } else {
-      await _adhanAudioService?.stop();
-    }
-  }
-
-  Future<void> setAdhanAudioPreset(String preset) async {
-    if (preset != 'tone') {
-      throw ArgumentError.value(preset, 'preset', 'Unsupported adhan preset');
-    }
-    adhanAudioPreset = preset;
-    await _preferences.setString('adhan_audio_preset', preset);
-    notifyListeners();
-  }
-
-  Future<void> previewAdhan() async {
-    if (_adhanAudioService == null || !adhanAudioEnabled) return;
-    await _adhanAudioService!.playPreview();
-    notifyListeners();
-  }
-
-  Future<void> stopAdhanPreview() async {
-    await _adhanAudioService?.stop();
-    notifyListeners();
-  }
-
   Future<void> sendTestNotification() async {
     final service = _prayerNotifications;
     if (service == null || !service.isSupported) {
       throw UnsupportedError('نۆتیفیکەیشن لەم پلاتفۆرمەدا بەردەست نییە.');
     }
     await service.showTest(
-      title: 'بانگ | Kurdistan',
-      body: 'نۆتیفیکەیشنی تاقیکردنەوە',
+      language: appLanguage,
       vibration: notificationVibrationEnabled,
       silent: notificationsSilent,
     );
@@ -482,14 +434,6 @@ class BangAppState extends ChangeNotifier {
     themeMode = mode;
     notifyListeners();
     await _preferences.setString('theme_mode', mode.name);
-  }
-
-  Future<void> setMadhab(AsrMadhab value) async {
-    madhab = value;
-    _refreshSchedules();
-    notifyListeners();
-    await _preferences.setString('madhab', value.name);
-    await _reschedulePrayerNotifications();
   }
 
   void _refreshSchedules() {

@@ -4,6 +4,11 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../domain/prayer_schedule.dart';
 import 'baghdad_clock.dart';
+import 'localization.dart';
+
+class NotificationPermissionDeniedException implements Exception {
+  const NotificationPermissionDeniedException();
+}
 
 class PrayerAlert {
   const PrayerAlert({
@@ -25,6 +30,9 @@ class PrayerNotifications {
 
   static const idStart = 4000000;
   static const idEnd = 8500000;
+  static const _firstTestId = 2000000000;
+  static const _lastTestId = 2147483647;
+  static int _nextTestId = _firstTestId;
   final FlutterLocalNotificationsPlugin _plugin;
   bool _initialized = false;
 
@@ -64,8 +72,7 @@ class PrayerNotifications {
   }
 
   Future<void> showTest({
-    required String title,
-    required String body,
+    required AppLanguage language,
     required bool vibration,
     required bool silent,
   }) async {
@@ -73,11 +80,19 @@ class PrayerNotifications {
       throw UnsupportedError('Native notifications are unavailable here.');
     }
     _ensureInitialized();
+    if (!await requestPermission()) {
+      throw const NotificationPermissionDeniedException();
+    }
+    final localizations = AppLocalizations(language);
     await _plugin.show(
-      id: idEnd,
-      title: title,
-      body: body,
-      notificationDetails: _details(vibration: vibration, silent: silent),
+      id: _allocateTestId(),
+      title: 'Bang | Kurdistan',
+      body: localizations.testNotificationBody(),
+      notificationDetails: _details(
+        language: language,
+        vibration: vibration,
+        silent: silent,
+      ),
     );
   }
 
@@ -88,6 +103,7 @@ class PrayerNotifications {
     required int reminderMinutes,
     required bool vibration,
     required bool silent,
+    required AppLanguage language,
     required DateTime now,
   }) async {
     if (!isSupported) return;
@@ -109,12 +125,16 @@ class PrayerNotifications {
     for (final alert in alerts) {
       await _plugin.zonedSchedule(
         id: alert.id,
-        title: _title(alert.prayerId),
+        title: _title(alert.prayerId, language),
         body: alert.isReminder
-            ? 'ماوەی $reminderMinutes خولەک بۆ بانگ'
-            : 'کاتی بانگی نوێژە',
+            ? AppLocalizations(language).reminderBody(reminderMinutes)
+            : AppLocalizations(language).prayerNotificationBody(),
         scheduledDate: alert.scheduledAt,
-        notificationDetails: _details(vibration: vibration, silent: silent),
+        notificationDetails: _details(
+          language: language,
+          vibration: vibration,
+          silent: silent,
+        ),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         payload: '${schedules.first.cityId}:${alert.prayerId}',
       );
@@ -183,25 +203,44 @@ class PrayerNotifications {
   }
 
   NotificationDetails _details({
+    required AppLanguage language,
     required bool vibration,
     required bool silent,
   }) => NotificationDetails(
     android: AndroidNotificationDetails(
-      'prayer_times_${silent ? 'silent' : 'sound'}_'
+      'prayer_times_v2_chord_${silent ? 'silent' : 'sound'}_'
           '${vibration ? 'vibration' : 'no_vibration'}',
-      'Prayer times',
-      channelDescription: 'Prayer time reminders',
+      AppLocalizations(language).t(
+        'ئاگادارکردنەوەی نوێژ',
+        'تنبيهات الصلاة',
+        'Prayer notifications',
+      ),
+      channelDescription: AppLocalizations(language).t(
+        'ئاگادارکردنەوەی کاتی نوێژ',
+        'تذكيرات بمواقيت الصلاة',
+        'Prayer time reminders',
+      ),
       importance: Importance.high,
       priority: Priority.high,
       enableVibration: vibration,
       playSound: !silent,
+      sound: silent
+          ? null
+          : const RawResourceAndroidNotificationSound('chord_notification'),
     ),
     iOS: DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: false,
       presentSound: !silent,
+      sound: silent ? null : 'chord_notification.wav',
     ),
   );
+
+  static int _allocateTestId() {
+    final id = _nextTestId;
+    _nextTestId = id == _lastTestId ? _firstTestId : id + 1;
+    return id;
+  }
 
   void _ensureInitialized() {
     if (!_initialized) {
@@ -209,13 +248,6 @@ class PrayerNotifications {
     }
   }
 
-  static String _title(String prayerId) => switch (prayerId) {
-    'fajr' => 'بانگی بەیانی',
-    'sunrise' => 'هەڵاتنی خۆر',
-    'dhuhr' => 'بانگی نیوەڕۆ',
-    'asr' => 'بانگی عەسر',
-    'maghrib' => 'بانگی ئێوارە',
-    'isha' => 'بانگی خەوتنان',
-    _ => 'کاتی نوێژ',
-  };
+  static String _title(String prayerId, AppLanguage language) =>
+      AppLocalizations(language).notificationTitle(prayerId);
 }

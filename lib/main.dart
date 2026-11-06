@@ -6,7 +6,6 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'app_state.dart';
 import 'features/app_shell.dart';
-import 'services/adhan_audio_service.dart';
 import 'services/baghdad_clock.dart';
 import 'services/localization.dart';
 import 'services/prayer_notifications.dart';
@@ -15,7 +14,6 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   initializeBangTimeZones();
   final prayerNotifications = PrayerNotifications();
-  final adhanAudioService = AdhanAudioService();
   String? notificationInitializationError;
   try {
     await prayerNotifications.initialize();
@@ -27,9 +25,7 @@ Future<void> main() async {
         'خزمەتی نۆتیفیکەیشن بەردەست نییە: ${error.message}';
   }
   final state = await BangAppState.load();
-  await adhanAudioService.initialize();
   state.attachPrayerNotifications(prayerNotifications);
-  state.attachAdhanAudioService(adhanAudioService);
   state.notificationError = notificationInitializationError;
   runApp(BangApp(state: state));
   unawaited(state.loadScheduleFor(baghdadNow()));
@@ -232,6 +228,7 @@ class BangApp extends StatelessWidget {
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
+            AppLocalizationsDelegate(state.appLanguage),
           ],
           theme: light,
           darkTheme: dark,

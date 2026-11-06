@@ -6,6 +6,7 @@ import 'package:kurdistan_bang/app_state.dart';
 import 'package:kurdistan_bang/main.dart';
 import 'package:kurdistan_bang/services/baghdad_clock.dart';
 import 'package:kurdistan_bang/services/hijri_calendar.dart';
+import 'package:kurdistan_bang/services/localization.dart';
 import 'package:kurdistan_bang/services/prayer_time_service.dart';
 import 'package:kurdistan_bang/services/settings_store.dart';
 
@@ -29,6 +30,16 @@ void main() {
       await expectLater(state.setTasbihTarget(100001), throwsArgumentError);
     },
   );
+
+  test('selected language is persisted', () async {
+    final store = _MemorySettingsStore();
+    final state = BangAppState(store);
+
+    await state.setAppLanguage(AppLanguage.ar);
+
+    expect(state.appLanguage, AppLanguage.ar);
+    expect(await store.getString('app_language'), 'ar');
+  });
 
   test(
     'prayer tracker records, edits and clears daily prayer status',
@@ -110,6 +121,55 @@ void main() {
     await tester.pumpWidget(BangApp(state: state));
 
     expect(state.themeMode, ThemeMode.system);
+  });
+
+  testWidgets('English selection updates navigation and settings', (
+    tester,
+  ) async {
+    final state = _createState();
+    await state.setAppLanguage(AppLanguage.en);
+    await state.loadScheduleFor(baghdadNow());
+    await tester.pumpWidget(BangApp(state: state));
+    await tester.pump();
+
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Calendar'), findsOneWidget);
+    expect(find.text('More'), findsOneWidget);
+    expect(find.text('Erbil'), findsOneWidget);
+    expect(find.text('Qibla'), findsNothing);
+    expect(
+      Directionality.of(tester.element(find.byType(Scaffold).first)),
+      TextDirection.ltr,
+    );
+
+    await tester.tap(find.byTooltip('Settings'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Appearance'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Prayer notifications'),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Prayer notifications'), findsOneWidget);
+    expect(find.text('Adhan'), findsNothing);
+    expect(find.text('Hanafi'), findsNothing);
+  });
+
+  testWidgets('Arabic selection applies RTL and Arabic labels', (tester) async {
+    final state = _createState();
+    await state.setAppLanguage(AppLanguage.ar);
+    await state.loadScheduleFor(baghdadNow());
+    await tester.pumpWidget(BangApp(state: state));
+    await tester.pump();
+
+    expect(find.text('الرئيسية'), findsOneWidget);
+    expect(find.text('التقويم'), findsOneWidget);
+    expect(find.text('أربيل'), findsOneWidget);
+    expect(
+      Directionality.of(tester.element(find.byType(Scaffold).first)),
+      TextDirection.rtl,
+    );
   });
 }
 

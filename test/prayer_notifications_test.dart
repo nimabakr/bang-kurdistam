@@ -1,11 +1,31 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kurdistan_bang/domain/prayer_schedule.dart';
 import 'package:kurdistan_bang/services/baghdad_clock.dart';
+import 'package:kurdistan_bang/services/localization.dart';
 import 'package:kurdistan_bang/services/prayer_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 void main() {
   setUpAll(initializeBangTimeZones);
+
+  test('prayer notifications use the selected language', () {
+    expect(
+      AppLocalizations(AppLanguage.ku).notificationTitle('fajr'),
+      'بانگی بەیانی',
+    );
+    expect(
+      AppLocalizations(AppLanguage.ar).notificationTitle('fajr'),
+      'حان وقت صلاة الفجر',
+    );
+    expect(
+      AppLocalizations(AppLanguage.en).notificationTitle('fajr'),
+      'Fajr prayer',
+    );
+    expect(
+      AppLocalizations(AppLanguage.en).reminderBody(10),
+      '10 minutes until prayer',
+    );
+  });
 
   test('plans use the shared local timetable and omit calculated fallback', () {
     final schedules = [

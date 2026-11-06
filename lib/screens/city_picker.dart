@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../domain/city.dart';
 import '../services/city_location.dart';
+import '../services/localization.dart';
 
 class CityPickerScreen extends StatefulWidget {
   const CityPickerScreen({required this.state, super.key});
@@ -54,7 +55,7 @@ class _CityPickerScreenState extends State<CityPickerScreen> {
             children: [
               Expanded(
                 child: Text(
-                  'شار',
+                  context.l10n.text('شار'),
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
               ),
@@ -68,12 +69,12 @@ class _CityPickerScreenState extends State<CityPickerScreen> {
                 )
               else
                 IconButton(
-                  tooltip: 'بەکارهێنانی شوێنی ئێستا',
+                  tooltip: context.l10n.text('بەکارهێنانی شوێنی ئێستا'),
                   onPressed: _selectNearestCity,
                   icon: const Icon(Icons.my_location_rounded),
                 ),
               IconButton(
-                tooltip: 'داخستن',
+                tooltip: context.l10n.text('داخستن'),
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.close_rounded),
               ),
@@ -87,12 +88,14 @@ class _CityPickerScreenState extends State<CityPickerScreen> {
             onChanged: (value) => setState(() => _query = value),
             textInputAction: TextInputAction.search,
             decoration: InputDecoration(
-              hintText: 'گەڕان بە ناوی کوردی، عەرەبی یان ئینگلیزی',
+              hintText: context.l10n.text(
+                'گەڕان بە ناوی کوردی، عەرەبی یان ئینگلیزی',
+              ),
               prefixIcon: const Icon(Icons.search_rounded),
               suffixIcon: _query.isEmpty
                   ? null
                   : IconButton(
-                      tooltip: 'پاککردنەوە',
+                      tooltip: context.l10n.text('پاککردنەوە'),
                       onPressed: () {
                         _searchController.clear();
                         setState(() => _query = '');
@@ -113,14 +116,16 @@ class _CityPickerScreenState extends State<CityPickerScreen> {
             child: Align(
               alignment: AlignmentDirectional.centerStart,
               child: Text(
-                error,
+                context.l10n.text(error),
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ),
           ),
         Expanded(
           child: filtered.isEmpty
-              ? const Center(child: Text('هیچ شارێک نەدۆزرایەوە'))
+              ? Center(
+                  child: Text(context.l10n.text('هیچ شارێک نەدۆزرایەوە')),
+                )
               : ListView.separated(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                   itemCount: filtered.length,
@@ -145,14 +150,14 @@ class _CityPickerScreenState extends State<CityPickerScreen> {
                             : null,
                       ),
                       title: Text(
-                        city.kurdishName,
+                        context.l10n.cityName(city),
                         style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
-                      subtitle: Text(city.governorate),
+                      subtitle: Text(context.l10n.text(city.governorate)),
                       trailing: IconButton(
                         tooltip: isFavorite
-                            ? 'لابردن لە دڵخوازەکان'
-                            : 'زیادکردن بۆ دڵخوازەکان',
+                            ? context.l10n.text('لابردن لە دڵخوازەکان')
+                            : context.l10n.text('زیادکردن بۆ دڵخوازەکان'),
                         onPressed: () async {
                           await widget.state.toggleFavorite(city);
                           if (mounted) setState(() {});

@@ -10,8 +10,6 @@ import '../domain/city.dart';
 import '../domain/prayer_schedule.dart';
 import 'settings_store.dart';
 
-enum AsrMadhab { shafi, hanafi }
-
 enum TimetableSource { remote, cache }
 
 class TimetableException implements Exception {
@@ -63,7 +61,6 @@ class TimetableDataset {
   PrayerSchedule scheduleFor({
     required City city,
     required DateTime date,
-    required AsrMadhab madhab,
     required Map<String, int> minuteAdjustments,
   }) {
     if (city.id != cityId) {
@@ -407,7 +404,6 @@ class PrayerTimeService {
   PrayerSchedule calculateFallback({
     required City city,
     required DateTime date,
-    required AsrMadhab madhab,
     required Map<String, int> minuteAdjustments,
   }) {
     final latitude = city.latitude;
@@ -418,9 +414,7 @@ class PrayerTimeService {
       );
     }
     final parameters = adhan.CalculationMethodParameters.muslimWorldLeague();
-    parameters.madhab = madhab == AsrMadhab.hanafi
-        ? adhan.Madhab.hanafi
-        : adhan.Madhab.shafi;
+    parameters.madhab = adhan.Madhab.shafi;
     parameters.adjustments = {
       adhan.Prayer.fajr: minuteAdjustments['fajr'] ?? 0,
       adhan.Prayer.dhuhr: minuteAdjustments['dhuhr'] ?? 0,
@@ -464,7 +458,7 @@ class PrayerTimeService {
       date: tz.TZDateTime(location, date.year, date.month, date.day),
       times: times,
       source: PrayerScheduleSource.calculatedFallback,
-      sourceReference: 'Muslim World League · $madhab',
+      sourceReference: 'Muslim World League · shafi',
     );
   }
 }

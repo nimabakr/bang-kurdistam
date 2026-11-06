@@ -22,7 +22,6 @@ void main() {
     final schedule = dataset.scheduleFor(
       city: kalar,
       date: DateTime(2024, 11, 5),
-      madhab: AsrMadhab.shafi,
       minuteAdjustments: const {},
     );
 
@@ -65,7 +64,6 @@ void main() {
       final schedule = dataset.scheduleFor(
         city: kalar,
         date: date,
-        madhab: AsrMadhab.shafi,
         minuteAdjustments: const {},
       );
       expect(schedule.date.month, date.month);
@@ -252,7 +250,6 @@ void main() {
       () => kalarDataset.scheduleFor(
         city: hawler,
         date: DateTime(2024, 11, 5),
-        madhab: AsrMadhab.shafi,
         minuteAdjustments: const {},
       ),
       throwsA(isA<TimetableException>()),
@@ -270,7 +267,6 @@ void main() {
     final schedule = dataset.scheduleFor(
       city: kalar,
       date: DateTime(2024, 11, 5),
-      madhab: AsrMadhab.shafi,
       minuteAdjustments: const {},
     );
 
@@ -321,13 +317,11 @@ void main() {
     final today = dataset.scheduleFor(
       city: kalar,
       date: DateTime(2024, 11, 5),
-      madhab: AsrMadhab.shafi,
       minuteAdjustments: const {},
     );
     final tomorrow = dataset.scheduleFor(
       city: kalar,
       date: DateTime(2024, 11, 6),
-      madhab: AsrMadhab.shafi,
       minuteAdjustments: const {},
     );
     expect(today.times.first.time.timeZoneOffset, const Duration(hours: 3));

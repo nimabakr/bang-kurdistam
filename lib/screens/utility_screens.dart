@@ -1,262 +1,12 @@
-import 'dart:async';
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:sensors_plus/sensors_plus.dart';
 
 import '../app_state.dart';
-import '../services/qibla_service.dart';
 import '../features/app_shell.dart';
 import '../services/baghdad_clock.dart';
 import '../services/hijri_calendar.dart';
+import '../services/localization.dart';
 import '../widgets/glass.dart';
-
-class QiblaScreen extends StatefulWidget {
-  const QiblaScreen({required this.state, super.key});
-
-  final BangAppState state;
-
-  @override
-  State<QiblaScreen> createState() => _QiblaScreenState();
-}
-
-class _QiblaScreenState extends State<QiblaScreen> {
-  StreamSubscription<MagnetometerEvent>? _magnetometerSubscription;
-  double? _deviceHeading;
-  final _manualHeadingController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _listenToCompass();
-  }
-
-  @override
-  void dispose() {
-    _magnetometerSubscription?.cancel();
-    _manualHeadingController.dispose();
-    super.dispose();
-  }
-
-  void _listenToCompass() {
-    _magnetometerSubscription = magnetometerEventStream().listen(
-      (event) {
-        final heading = QiblaService.headingFromMagnetometer(event);
-        if (heading == null || !mounted) return;
-        setState(() => _deviceHeading = heading);
-      },
-      onError: (_) {
-        if (mounted) setState(() => _deviceHeading = null);
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final city = widget.state.selectedCity;
-    final latitude = city.latitude;
-    final longitude = city.longitude;
-    if (latitude == null || longitude == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('قیبلە')),
-        body: const Center(child: Text('شوێنی قیبلە بەردەست نییە')),
-      );
-    }
-
-    final qiblaBearing = QiblaService.bearingFrom(city);
-    final distance = _distanceToKaaba(latitude, longitude);
-    final manualDegree = double.tryParse(_manualHeadingController.text) ?? 0;
-    final heading = _deviceHeading ?? manualDegree;
-    final relative = QiblaService.relativeBearing(
-      qiblaBearing: qiblaBearing,
-      heading: heading,
-    );
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('قیبلە')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
-        children: [
-          Text(city.kurdishName, textAlign: TextAlign.center),
-          const SizedBox(height: 12),
-          Center(
-            child: SizedBox(
-              width: 280,
-              height: 280,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Theme.of(context).colorScheme.primaryContainer,
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.primary
-                            .withValues(alpha: .3),
-                        width: 2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Theme.of(context).colorScheme.primary
-                              .withValues(alpha: .12),
-                          blurRadius: 28,
-                          spreadRadius: 6,
-                        ),
-                      ],
-                    ),
-                  ),
-                  ..._cardinalMarkers(),
-                  Transform.rotate(
-                    angle: relative * math.pi / 180,
-                    child: SizedBox(
-                      width: 220,
-                      height: 220,
-                      child: CustomPaint(
-                        painter: _CompassPointerPainter(
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Container(
-                    width: 58,
-                    height: 58,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.mosque_rounded,
-                      color: Theme.of(context).colorScheme.tertiary,
-                      size: 30,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '${qiblaBearing.toStringAsFixed(1)}°',
-            textDirection: TextDirection.ltr,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineLarge
-                ?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '${distance.toStringAsFixed(0)} km',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 12),
-          if (_deviceHeading == null)
-            Text(
-              'کۆمپاسەکە بەردەست نییە؛ هەڵبژاردنی دەستی لەژێر بەردەستە.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
-            )
-          else
-            Text(
-              'ڕووی کۆمپاس: ${_deviceHeading!.toStringAsFixed(1)}°',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _manualHeadingController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9.\-]')),
-            ],
-            decoration: InputDecoration(
-              labelText: 'ڕووی دەستی (درێژە)',
-              hintText: '0 - 359',
-              suffixText: '°',
-            ),
-            onChanged: (value) {
-              final parsed = double.tryParse(value);
-              if (parsed == null) return;
-              setState(() {});
-            },
-          ),
-          const SizedBox(height: 8),
-          FilledButton.icon(
-            onPressed: () {
-              final parsed = double.tryParse(_manualHeadingController.text);
-              if (parsed == null) {
-                _manualHeadingController.text = '0';
-              }
-              setState(() {});
-            },
-            icon: const Icon(Icons.rotate_left_rounded),
-            label: const Text('ڕێکخستنی دەستی'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _cardinalMarkers() {
-    return const [
-      Positioned(top: 18, child: Text('N')),
-      Positioned(bottom: 18, child: Text('S')),
-      Positioned(left: 20, child: Text('E')),
-      Positioned(right: 20, child: Text('W')),
-    ];
-  }
-
-  static double _distanceToKaaba(double latitude, double longitude) {
-    const earthRadiusKm = 6371.0;
-    const kaabaLatitude = 21.4225241;
-    const kaabaLongitude = 39.8261818;
-    final latitudeDelta = _radians(kaabaLatitude - latitude);
-    final longitudeDelta = _radians(kaabaLongitude - longitude);
-    final a =
-        math.sin(latitudeDelta / 2) * math.sin(latitudeDelta / 2) +
-        math.cos(_radians(latitude)) *
-            math.cos(_radians(kaabaLatitude)) *
-            math.sin(longitudeDelta / 2) *
-            math.sin(longitudeDelta / 2);
-    return earthRadiusKm * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-  }
-
-  static double _radians(double value) => value * math.pi / 180;
-}
-
-class _CompassPointerPainter extends CustomPainter {
-  const _CompassPointerPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final path = Path()
-      ..moveTo(center.dx, center.dy - size.height * 0.32)
-      ..lineTo(center.dx - 12, center.dy + size.height * 0.18)
-      ..lineTo(center.dx + 12, center.dy + size.height * 0.18)
-      ..close();
-    final fill = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-    final line = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-    canvas.drawPath(path, fill);
-    canvas.drawLine(
-      Offset(center.dx, center.dy - size.height * 0.22),
-      Offset(center.dx, center.dy + size.height * 0.26),
-      line,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_CompassPointerPainter oldDelegate) =>
-      oldDelegate.color != color;
-}
 
 class TasbihScreen extends StatelessWidget {
   const TasbihScreen({required this.state, super.key});
@@ -267,16 +17,18 @@ class TasbihScreen extends StatelessWidget {
     final shouldReset = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('ڕێستکردنی ژمارە'),
-        content: const Text('دڵنیایت دەتەوێت ژمارەکە سفر بکەیتەوە؟'),
+        title: Text(context.l10n.text('ڕێستکردنی ژمارە')),
+        content: Text(
+          context.l10n.text('دڵنیایت دەتەوێت ژمارەکە سفر بکەیتەوە؟'),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('نەخێر'),
+            child: Text(context.l10n.text('نەخێر')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('بەڵێ، سفر'),
+            child: Text(context.l10n.text('بەڵێ، سفر')),
           ),
         ],
       ),
@@ -286,32 +38,46 @@ class TasbihScreen extends StatelessWidget {
 
   Future<void> _chooseCustomTarget(BuildContext context) async {
     final controller = TextEditingController(text: '${state.tasbihTarget}');
+    String? validationError;
     final target = await showDialog<int>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('ئامانجی تایبەت'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: const InputDecoration(labelText: 'ژمارە'),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(context.l10n.text('ئامانجی تایبەت')),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: InputDecoration(
+              labelText: context.l10n.text('ژمارە'),
+              errorText: validationError,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(context.l10n.text('پاشگەزبوونەوە')),
+            ),
+            FilledButton(
+              onPressed: () {
+                final value = int.tryParse(controller.text);
+                if (value != null && value > 0 && value <= 100000) {
+                  Navigator.pop(context, value);
+                } else {
+                  setDialogState(
+                    () => validationError = context.l10n.t(
+                      'ژمارەیەکی لە ١ تا ١٠٠٠٠٠ بنووسە.',
+                      'أدخل رقمًا من ١ إلى ١٠٠٠٠٠.',
+                      'Enter a number from 1 to 100,000.',
+                    ),
+                  );
+                }
+              },
+              child: Text(context.l10n.text('پاشەکەوت')),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('پاشگەزبوونەوە'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final value = int.tryParse(controller.text);
-              if (value != null && value > 0 && value <= 100000) {
-                Navigator.pop(context, value);
-              }
-            },
-            child: const Text('پاشەکەوت'),
-          ),
-        ],
       ),
     );
     controller.dispose();
@@ -322,10 +88,10 @@ class TasbihScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('تەسبیحی دیجیتاڵ'),
+        title: Text(context.l10n.text('تەسبیحی دیجیتاڵ')),
         actions: [
           IconButton(
-            tooltip: 'ڕێستکردن',
+            tooltip: context.l10n.text('ڕێستکردن'),
             onPressed: () => _confirmReset(context),
             icon: const Icon(Icons.restart_alt_rounded),
           ),
@@ -376,7 +142,7 @@ class TasbihScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Expanded(child: Text('ئامانج')),
+                      Expanded(child: Text(context.l10n.text('ئامانج'))),
                       DropdownButton<int>(
                         value:
                             const [
@@ -388,20 +154,28 @@ class TasbihScreen extends StatelessWidget {
                             ? state.tasbihTarget
                             : 0,
                         items: [
-                          const DropdownMenuItem(value: 33, child: Text('٣٣')),
-                          const DropdownMenuItem(value: 99, child: Text('٩٩')),
-                          const DropdownMenuItem(
-                            value: 100,
-                            child: Text('١٠٠'),
+                          DropdownMenuItem(
+                            value: 33,
+                            child: Text(context.l10n.t('٣٣', '٣٣', '33')),
                           ),
-                          const DropdownMenuItem(
+                          DropdownMenuItem(
+                            value: 99,
+                            child: Text(context.l10n.t('٩٩', '٩٩', '99')),
+                          ),
+                          DropdownMenuItem(
+                            value: 100,
+                            child: Text(context.l10n.t('١٠٠', '١٠٠', '100')),
+                          ),
+                          DropdownMenuItem(
                             value: 1000,
-                            child: Text('١٠٠٠'),
+                            child: Text(
+                              context.l10n.t('١٠٠٠', '١٠٠٠', '1,000'),
+                            ),
                           ),
                           DropdownMenuItem(
                             value: 0,
                             child: Text(
-                              'تایبەت${const [33, 99, 100, 1000].contains(state.tasbihTarget) ? '' : ' (${state.tasbihTarget})'}',
+                              '${context.l10n.text('تایبەت')}${const [33, 99, 100, 1000].contains(state.tasbihTarget) ? '' : ' (${state.tasbihTarget})'}',
                             ),
                           ),
                         ],
@@ -414,7 +188,7 @@ class TasbihScreen extends StatelessWidget {
                         },
                       ),
                       IconButton(
-                        tooltip: 'ئامانجی تایبەت',
+                        tooltip: context.l10n.text('ئامانجی تایبەت'),
                         onPressed: () => _chooseCustomTarget(context),
                         icon: const Icon(Icons.edit_outlined),
                       ),
@@ -423,7 +197,11 @@ class TasbihScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   Semantics(
                     button: true,
-                    label: 'زیادکردنی ژمارەی ${state.tasbihDhikr}',
+                    label: context.l10n.t(
+                      'زیادکردنی ژمارەی ${state.tasbihDhikr}',
+                      'إضافة إلى ${state.tasbihDhikr}',
+                      'Add to ${state.tasbihDhikr}',
+                    ),
                     child: Material(
                       color: Colors.transparent,
                       child: InkWell(
@@ -494,11 +272,13 @@ class TasbihScreen extends StatelessWidget {
                         ? null
                         : () => state.setTasbihCount(state.tasbihCount - 1),
                     icon: const Icon(Icons.undo_rounded),
-                    label: const Text('یەک هەنگاو پاشەوە'),
+                    label: Text(context.l10n.text('یەک هەنگاو پاشەوە')),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'ژمارەکە لەسەر ئامێرەکەت پاشەکەوت دەکرێت.',
+                    context.l10n.text(
+                      'ژمارەکە لەسەر ئامێرەکەت پاشەکەوت دەکرێت.',
+                    ),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -523,27 +303,12 @@ class MonthlyCalendarScreen extends StatefulWidget {
 class _MonthlyCalendarScreenState extends State<MonthlyCalendarScreen> {
   late DateTime _month = DateTime.utc(baghdadNow().year, baghdadNow().month);
 
-  static const _monthNames = [
-    'کانوونی دووەم',
-    'شوبات',
-    'ئازار',
-    'نیسان',
-    'ئایار',
-    'حوزەیران',
-    'تەممووز',
-    'ئاب',
-    'ئەیلوول',
-    'تشرینی یەکەم',
-    'تشرینی دووەم',
-    'کانوونی یەکەم',
-  ];
-
   @override
   Widget build(BuildContext context) {
     final daysInMonth = DateTime.utc(_month.year, _month.month + 1, 0).day;
     final today = baghdadNow();
     return Scaffold(
-      appBar: AppBar(title: const Text('ڕۆژژمێری مانگانە')),
+      appBar: AppBar(title: Text(context.l10n.text('ڕۆژژمێری مانگانە'))),
       body: Column(
         children: [
           Padding(
@@ -551,7 +316,7 @@ class _MonthlyCalendarScreenState extends State<MonthlyCalendarScreen> {
             child: Row(
               children: [
                 IconButton(
-                  tooltip: 'مانگی پێشوو',
+                  tooltip: context.l10n.text('مانگی پێشوو'),
                   onPressed: () => setState(
                     () => _month = DateTime.utc(_month.year, _month.month - 1),
                   ),
@@ -559,13 +324,13 @@ class _MonthlyCalendarScreenState extends State<MonthlyCalendarScreen> {
                 ),
                 Expanded(
                   child: Text(
-                    '${_monthNames[_month.month - 1]} ${_month.year}',
+                    '${context.l10n.gregorianMonth(_month.month)} ${_month.year}',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
                 IconButton(
-                  tooltip: 'مانگی داهاتوو',
+                  tooltip: context.l10n.text('مانگی داهاتوو'),
                   onPressed: () => setState(
                     () => _month = DateTime.utc(_month.year, _month.month + 1),
                   ),
@@ -577,14 +342,14 @@ class _MonthlyCalendarScreenState extends State<MonthlyCalendarScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: Row(
-              children: const [
-                _CalendarColumnHeader('ڕۆژ'),
-                _CalendarColumnHeader('بەیانی'),
-                _CalendarColumnHeader('هەڵاتن'),
-                _CalendarColumnHeader('نیوەڕۆ'),
-                _CalendarColumnHeader('عەسر'),
-                _CalendarColumnHeader('ئێوارە'),
-                _CalendarColumnHeader('خەوتن'),
+              children: [
+                _CalendarColumnHeader(context.l10n.text('ڕۆژ')),
+                _CalendarColumnHeader(context.l10n.prayerName('fajr')),
+                _CalendarColumnHeader(context.l10n.prayerName('sunrise')),
+                _CalendarColumnHeader(context.l10n.prayerName('dhuhr')),
+                _CalendarColumnHeader(context.l10n.prayerName('asr')),
+                _CalendarColumnHeader(context.l10n.prayerName('maghrib')),
+                _CalendarColumnHeader(context.l10n.prayerName('isha')),
               ],
             ),
           ),
@@ -709,7 +474,7 @@ class _HijriCalendarScreenState extends State<HijriCalendarScreen> {
     final offset = firstGregorian.weekday % 7;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('ڕۆژژمێری هیجری')),
+      appBar: AppBar(title: Text(context.l10n.text('ڕۆژژمێری هیجری'))),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(18, 8, 18, 22),
         children: [
@@ -718,19 +483,20 @@ class _HijriCalendarScreenState extends State<HijriCalendarScreen> {
             child: Row(
               children: [
                 IconButton(
-                  tooltip: 'مانگی پێشوو',
+                  tooltip: context.l10n.text('مانگی پێشوو'),
                   onPressed: () => _moveMonth(-1),
                   icon: const Icon(Icons.chevron_right_rounded),
                 ),
                 Expanded(
                   child: Text(
-                    '${_month.monthName('ku')} ${_month.year}',
+                    '${_month.monthName(context.l10n.language.code)} '
+                    '${_month.year}',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
                 IconButton(
-                  tooltip: 'مانگی داهاتوو',
+                  tooltip: context.l10n.text('مانگی داهاتوو'),
                   onPressed: () => _moveMonth(1),
                   icon: const Icon(Icons.chevron_left_rounded),
                 ),
@@ -738,16 +504,15 @@ class _HijriCalendarScreenState extends State<HijriCalendarScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          const Wrap(
+          Wrap(
             alignment: WrapAlignment.spaceAround,
             children: [
-              _HijriWeekday('ی'),
-              _HijriWeekday('د'),
-              _HijriWeekday('س'),
-              _HijriWeekday('چ'),
-              _HijriWeekday('پ'),
-              _HijriWeekday('ه'),
-              _HijriWeekday('ش'),
+              for (final day in switch (context.l10n.language) {
+                AppLanguage.ku => const ['ی', 'د', 'س', 'چ', 'پ', 'ه', 'ش'],
+                AppLanguage.ar => const ['ح', 'ن', 'ث', 'ر', 'خ', 'ج', 'س'],
+                AppLanguage.en => const ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+              })
+                _HijriWeekday(day),
             ],
           ),
           const SizedBox(height: 6),
@@ -807,7 +572,9 @@ class _HijriCalendarScreenState extends State<HijriCalendarScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'بەرواری هیجریی خەمڵێنراوە؛ ڕۆژبژمێری مانگ‌بینینی ناوخۆیی لەوانەیە جیاواز بێت.',
+            context.l10n.text(
+              'بەرواری هیجریی خەمڵێنراوە؛ ڕۆژبژمێری مانگ‌بینینی ناوخۆیی لەوانەیە جیاواز بێت.',
+            ),
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall,
           ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../domain/prayer_schedule.dart';
 import '../services/baghdad_clock.dart';
+import '../services/localization.dart';
 import '../widgets/glass.dart';
 
 String _formatPrayerTime(DateTime time) =>
@@ -23,7 +24,7 @@ class _PrayerTrackerScreenState extends State<PrayerTrackerScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('تۆماری نوێژ')),
+    appBar: AppBar(title: Text(context.l10n.text('تۆماری نوێژ'))),
     body: ListenableBuilder(
       listenable: widget.state,
       builder: (context, _) {
@@ -52,7 +53,7 @@ class _PrayerTrackerScreenState extends State<PrayerTrackerScreen> {
               child: Row(
                 children: [
                   IconButton(
-                    tooltip: 'ڕۆژی پێشوو',
+                    tooltip: context.l10n.text('ڕۆژی پێشوو'),
                     onPressed: () => setState(
                       () => _date = _date.subtract(const Duration(days: 1)),
                     ),
@@ -65,8 +66,8 @@ class _PrayerTrackerScreenState extends State<PrayerTrackerScreen> {
                           _date.day == baghdadNow().day &&
                                   _date.month == baghdadNow().month &&
                                   _date.year == baghdadNow().year
-                              ? 'ئەمڕۆ'
-                              : 'ڕۆژ',
+                              ? context.l10n.text('ئەمڕۆ')
+                              : context.l10n.text('ڕۆژ'),
                         ),
                         Text(
                           '${_date.year}/${_date.month}/${_date.day}',
@@ -76,7 +77,7 @@ class _PrayerTrackerScreenState extends State<PrayerTrackerScreen> {
                     ),
                   ),
                   IconButton(
-                    tooltip: 'ڕۆژی داهاتوو',
+                    tooltip: context.l10n.text('ڕۆژی داهاتوو'),
                     onPressed: _isToday
                         ? null
                         : () => setState(
@@ -89,9 +90,11 @@ class _PrayerTrackerScreenState extends State<PrayerTrackerScreen> {
             ),
             const SizedBox(height: 14),
             if (schedule == null)
-              const GlassSurface(
+              GlassSurface(
                 child: Text(
-                  'خشتەی ئەم ڕۆژە بەردەست نییە؛ تۆمارکردن ناکرێت.',
+                  context.l10n.text(
+                    'خشتەی ئەم ڕۆژە بەردەست نییە؛ تۆمارکردن ناکرێت.',
+                  ),
                   textAlign: TextAlign.center,
                 ),
               )
@@ -102,7 +105,9 @@ class _PrayerTrackerScreenState extends State<PrayerTrackerScreen> {
                   children: [
                     Row(
                       children: [
-                        Expanded(child: Text('ڕۆژانە')),
+                        Expanded(
+                          child: Text(context.l10n.text('ڕۆژانە')),
+                        ),
                         Text('$completed / ${prayers.length}'),
                       ],
                     ),
@@ -114,8 +119,14 @@ class _PrayerTrackerScreenState extends State<PrayerTrackerScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      '$recorded تۆمارکراو · '
-                      '${prayers.length - recorded} نەنووسراو',
+                      context.l10n.t(
+                        '$recorded تۆمارکراو · '
+                            '${prayers.length - recorded} نەنووسراو',
+                        '$recorded مسجلة · '
+                            '${prayers.length - recorded} غير مسجلة',
+                        '$recorded recorded · '
+                            '${prayers.length - recorded} not recorded',
+                      ),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -136,11 +147,17 @@ class _PrayerTrackerScreenState extends State<PrayerTrackerScreen> {
             Row(
               children: [
                 Expanded(
-                  child: _StatCard(title: '٧ ڕۆژ', value: '$weekly'),
+                  child: _StatCard(
+                    title: context.l10n.text('٧ ڕۆژ'),
+                    value: '$weekly',
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: _StatCard(title: '٣٠ ڕۆژ', value: '$monthly'),
+                  child: _StatCard(
+                    title: context.l10n.text('٣٠ ڕۆژ'),
+                    value: '$monthly',
+                  ),
                 ),
               ],
             ),
@@ -188,17 +205,17 @@ class _PrayerLogRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final (label, icon, color) = switch (status) {
       PrayerLogStatus.completed => (
-        'ئەنجامدرا',
+        context.l10n.text('ئەنجامدرا'),
         Icons.check_circle_rounded,
         Theme.of(context).colorScheme.primary,
       ),
       PrayerLogStatus.missed => (
-        'لەدەستچوو',
+        context.l10n.text('لەدەستچوو'),
         Icons.cancel_outlined,
         Theme.of(context).colorScheme.error,
       ),
       null => (
-        'تۆمار نەکراوە',
+        context.l10n.text('تۆمار نەکراوە'),
         Icons.radio_button_unchecked_rounded,
         Theme.of(context).colorScheme.onSurfaceVariant,
       ),
@@ -214,7 +231,7 @@ class _PrayerLogRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  prayer.name,
+                  context.l10n.prayerName(prayer.id),
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 Text(
@@ -226,7 +243,7 @@ class _PrayerLogRow extends StatelessWidget {
             ),
           ),
           PopupMenuButton<String>(
-            tooltip: 'گۆڕینی دۆخ',
+            tooltip: context.l10n.text('گۆڕینی دۆخ'),
             initialValue: status?.name,
             onSelected: (value) => onChanged(
               value == 'clear'
@@ -235,10 +252,19 @@ class _PrayerLogRow extends StatelessWidget {
                       (item) => item.name == value,
                     ),
             ),
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'completed', child: Text('ئەنجامدرا')),
-              PopupMenuItem(value: 'missed', child: Text('لەدەستچوو')),
-              PopupMenuItem(value: 'clear', child: Text('تۆمار نەکراوە')),
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'completed',
+                child: Text(context.l10n.text('ئەنجامدرا')),
+              ),
+              PopupMenuItem(
+                value: 'missed',
+                child: Text(context.l10n.text('لەدەستچوو')),
+              ),
+              PopupMenuItem(
+                value: 'clear',
+                child: Text(context.l10n.text('تۆمار نەکراوە')),
+              ),
             ],
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
