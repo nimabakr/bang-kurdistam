@@ -35,20 +35,8 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install Android SDK and NDK versions required by Flutter
-        shell: bash
-        run: |
-          flutter_root="$(dirname "$(dirname "$(readlink -f "$(command -v flutter)")")")"
-          flutter_extension="$flutter_root/packages/flutter_tools/gradle/src/main/kotlin/FlutterExtension.kt"
-          compile_sdk="$(sed -nE 's/.*compileSdkVersion: Int = ([0-9]+).*/\1/p' "$flutter_extension")"
-          ndk_version="$(sed -nE 's/.*ndkVersion: String = "([^"]+)".*/\1/p' "$flutter_extension")"
-
-          if [[ -z "$compile_sdk" || -z "$ndk_version" ]]; then
-            echo "::error::Could not determine compileSdkVersion and ndkVersion from the selected Flutter SDK."
-            exit 1
-          fi
-
-          sdkmanager "platforms;android-${compile_sdk}" "ndk;${ndk_version}"
+      - name: Install required Android SDK platform and NDK
+        run: sdkmanager "platforms;android-36" "ndk;28.2.13676358"
 
       - name: Install Flutter dependencies
         run: flutter pub get
