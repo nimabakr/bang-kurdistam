@@ -1,0 +1,71 @@
+name: Android CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Analyze, test, and build APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install Android SDK and NDK versions required by Flutter
+        shell: bash
+        run: |
+          flutter_root="$(dirname "$(dirname "$(readlink -f "$(command -v flutter)")")")"
+          flutter_extension="$flutter_root/packages/flutter_tools/gradle/src/main/kotlin/FlutterExtension.kt"
+          compile_sdk="$(sed -nE 's/.*compileSdkVersion: Int = ([0-9]+).*/\1/p' "$flutter_extension")"
+          ndk_version="$(sed -nE 's/.*ndkVersion: String = "([^"]+)".*/\1/p' "$flutter_extension")"
+
+          if [[ -z "$compile_sdk" || -z "$ndk_version" ]]; then
+            echo "::error::Could not determine compileSdkVersion and ndkVersion from the selected Flutter SDK."
+            exit 1
+          fi
+
+          sdkmanager "platforms;android-${compile_sdk}" "ndk;${ndk_version}"
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
